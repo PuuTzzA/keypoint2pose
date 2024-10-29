@@ -2,19 +2,26 @@ import bpy
 import os
 import numpy as np
 import math
+import mathutils
+
 
 # Set the path to your OBJ file
 obj_file_path = r"C:\__Coding__\SNU_5_Semester\Robot_Vision\Project\3d_reconstruction\keypoint2pose\test\test_cube.obj"
+points_file_path = r"C:\__Coding__\SNU_5_Semester\Robot_Vision\Project\3d_reconstruction\keypoint2pose\test\test_ndc_coordinates.txt"
 
-if not os.path.exists(obj_file_path):
-    print("File not found:", obj_file_path)
+if not os.path.exists(obj_file_path) or not os.path.exists(points_file_path):
+    print("One or more files not found:", obj_file_path)
 else:
-    print("File found, proceeding...")
+    print("Files found, proceeding...")
 
 
 # Clear all existing mesh objects in the scene
 bpy.ops.object.select_all(action='DESELECT')
 bpy.ops.object.select_by_type(type='MESH')
+bpy.ops.object.delete()
+
+bpy.ops.object.select_all(action='DESELECT')
+bpy.ops.object.select_by_type(type='CURVE')
 bpy.ops.object.delete()
 
 model_matrix = np.array([
@@ -98,6 +105,21 @@ def create_view_frustum_visualizer(l, r, t, b, n, f, fov, fov_vertical):
     cube.name = "NDC"
     cube.modifiers.new(name="Wireframe", type='WIREFRAME')
 
+def create_line(start, end, thickness=0.01):
+    length = (mathutils.Vector(end) - mathutils.Vector(start)).length
+    
+    # Create a cylinder and set its dimensions
+    bpy.ops.mesh.primitive_cylinder_add(radius=thickness, depth=length, location=(0, 0, 0))
+    line = bpy.context.object
+    
+    # Set the position of the cylinder to be between the start and end points
+    line.location = [(s + e) / 2 for s, e in zip(start, end)]
+    
+    # Calculate the direction vector and rotation of the line
+    direction = mathutils.Vector(end) - mathutils.Vector(start)
+    rot_quat = direction.to_track_quat('Z', 'Y')
+    line.rotation_euler = rot_quat.to_euler()
+    
 
 n = 1
 f = 15
@@ -160,8 +182,30 @@ with open(obj_file_path, 'r') as file:
             #bpy.ops.mesh.primitive_cube_add(size=0.01, location=(location[0], location[1], location[2]))
 
             location2 = m_o @ m_p @ location2
+
+            x = location2[3]
             location2 /= location2[3]
 
             bpy.ops.mesh.primitive_cube_add(size=0.1, location=(location2[0], location2[1], location2[2]))
 
 
+with open(points_file_path, 'r') as file:
+    for line in file:
+
+        parts = line.strip().split(',')
+        print(parts[0])      
+
+        x, y = float(parts[0]), float(parts[1])
+        start_point = np.array([x, y, -1, 1])
+        end_point = np.array([x, y, 1, 1])
+
+        create_line(start_point[:3], end_point[:3])
+
+        inverse_projection_matrix = np.linalg.inv(m_o @ m_p)
+
+        start_point *= n
+        start_point = inverse_projection_matrix @ start_point
+        end_point *= f
+        end_point = inverse_projection_matrix @ end_point
+
+        create_line(start_point[:3], end_point[:3])
