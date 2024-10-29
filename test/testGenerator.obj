@@ -1,6 +1,6 @@
 # Blender 4.0.0
 # www.blender.org
-mtllib test_cube.mtl
+mtllib testGenerator.mtl
 o Cube.001
 v 2.224122 2.000000 -1.000000
 v 1.000000 0.000000 -1.000000
