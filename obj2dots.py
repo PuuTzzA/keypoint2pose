@@ -6,8 +6,10 @@ import mathutils
 
 
 # Set the path to your OBJ file
-obj_file_path = r"C:\__Coding__\SNU_5_Semester\Robot_Vision\Project\3d_reconstruction\keypoint2pose\test\test_cube.obj"
-points_file_path = r"C:\__Coding__\SNU_5_Semester\Robot_Vision\Project\3d_reconstruction\keypoint2pose\test\test_ndc_coordinates.txt"
+relative_obj_file_path = os.path.join("//test", "test_cube.obj")
+obj_file_path = bpy.path.abspath(relative_obj_file_path)
+relative_points_file_path = os.path.join("//test", "test_ndc_coordinates.txt")
+points_file_path = bpy.path.abspath(relative_points_file_path)
 
 if not os.path.exists(obj_file_path) or not os.path.exists(points_file_path):
     print("One or more files not found:", obj_file_path)
