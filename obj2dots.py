@@ -26,12 +26,39 @@ bpy.ops.object.select_all(action='DESELECT')
 bpy.ops.object.select_by_type(type='CURVE')
 bpy.ops.object.delete()
 
-model_matrix = np.array([
+translation = np.array([
     [1, 0, 0, 0],
     [0, 1, 0, -1],
     [0, 0, 1, 9],
     [0, 0, 0, 1]
 ])
+
+r_x = math.pi/8
+r_y = math.pi/4
+r_z = 1.223422
+
+rotation_x = np.array([
+    [1, 0, 0, 0],
+    [0, math.cos(r_x), -math.sin(r_x), 0],
+    [0, math.sin(r_x), math.cos(r_x), 0],
+    [0, 0, 0, 1]
+])
+
+rotation_y = np.array([
+    [math.cos(r_y), 0, math.sin(r_y), 0],
+    [0, 1, 0, 0],
+    [-math.sin(r_y), 0, math.cos(r_y), 0],
+    [0, 0, 0, 1]
+])
+
+rotation_z = np.array([
+    [math.cos(r_z), -math.sin(r_z), 0, 0],
+    [math.sin(r_z), math.cos(r_z), 0, 0],
+    [0, 0, 1, 0],
+    [0, 0, 0, 1]
+])
+
+model_matrix = translation @ rotation_z @ rotation_y @ rotation_x
 
 
 def set_camera_params():
@@ -162,6 +189,7 @@ m_ndc = np.array([
 projection_matrix = m_ndc @ m_p
 
 vertices_3d = []
+POINTS_FROM_FILE = False
 points_2d = []
 
 # Open the OBJ file and read line by line
@@ -193,32 +221,25 @@ with open(obj_file_path, 'r') as file:
 
             bpy.ops.mesh.primitive_cube_add(size=0.1, location=(location2[0], location2[1], location2[2]))
 
+            if not POINTS_FROM_FILE:
+                points_2d.append([location2[0], location2[1]])
+
+
+
 
 
 A = np.zeros((2 * len(vertices_3d), 12))
 b = np.zeros(2 * len(vertices_3d))
 
-with open(points_file_path, 'r') as file:
-    for line in file:
-        parts = line.strip().split(',')
+if POINTS_FROM_FILE:
+    with open(points_file_path, 'r') as file:
+        for line in file:
+            parts = line.strip().split(',')
 
-        x_, y_ = float(parts[0]), float(parts[1])
+            x_, y_ = float(parts[0]), float(parts[1])
 
-        points_2d.append([x_, y_])
+            points_2d.append([x_, y_])
 
-        start_point = np.array([x_, y_, -1, 1])
-        end_point = np.array([x_, y_, 1, 1])
-
-        create_line(start_point[:3], end_point[:3])
-
-        inverse_projection_matrix = np.linalg.inv(projection_matrix)
-
-        start_point *= n
-        start_point = inverse_projection_matrix @ start_point
-        end_point *= f
-        end_point = inverse_projection_matrix @ end_point
-
-        create_line(start_point[:3], end_point[:3])
 
 
 print("----------------------------------")
@@ -278,11 +299,27 @@ print("difference:")
 print(model_matrix_predicted_refined - model_matrix)
 
 
-for x, y, z in vertices_3d:
+for i in range(0, len(vertices_3d)):
+    x, y, z = vertices_3d[i]
+    x_, y_ = points_2d[i]
+
     location = np.array([x, y, z, 1])
     location = model_matrix_predicted_refined @ location
-    
-    # Place a cube at each vertex position
     bpy.ops.mesh.primitive_cube_add(size=1, location=(location[0], location[1], location[2]))
+
+    # Visualization
+    start_point = np.array([x_, y_, -1, 1])
+    end_point = np.array([x_, y_, 1, 1])
+    
+    create_line(start_point[:3], end_point[:3])
+    
+    inverse_projection_matrix = np.linalg.inv(projection_matrix)
+    
+    start_point *= n
+    start_point = inverse_projection_matrix @ start_point
+    end_point *= f
+    end_point = inverse_projection_matrix @ end_point
+    
+    create_line(start_point[:3], end_point[:3])
 
 print("----------------------------------")
