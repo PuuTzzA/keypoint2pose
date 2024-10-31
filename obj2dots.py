@@ -291,9 +291,9 @@ for i in range(0, 4):
 
 print("model_matrix:")
 print(model_matrix)
-print("model_matrix_predicted")
-print(model_matrix_predicted)
-print("refined_model_matrix")
+#print("model_matrix_predicted")
+#print(model_matrix_predicted)
+print("model_matrix_predicted_refined")
 print(model_matrix_predicted_refined)
 print("difference:")
 print(model_matrix_predicted_refined - model_matrix)
