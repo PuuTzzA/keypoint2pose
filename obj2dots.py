@@ -241,8 +241,8 @@ for i in range(0, len(vertices_3d)):
 U, S, Vt = np.linalg.svd(A)
 
 model_matrix_predicted = Vt[-1].reshape(3, 4)
-model_matrix_predicted = np.vstack([model_matrix_predicted, [0, 0, 0, 1]])
 model_matrix_predicted /= model_matrix_predicted[-1][-1]
+model_matrix_predicted = np.vstack([model_matrix_predicted, [0, 0, 0, 1]])
 
 R = [[model_matrix_predicted[i][j] for j in range(0, 3)] for i in range(0, 3)]
 T = [model_matrix_predicted[_][3] for _ in range(0, 3)]
@@ -251,6 +251,9 @@ T = np.array(T)
 
 U, _, Vt = np.linalg.svd(R)
 R_orthogonal = U @ Vt
+
+s = R_orthogonal[0][0] / R[0][0]
+T *= s
 
 model_matrix_predicted_refined = np.eye(4)
 
@@ -280,6 +283,6 @@ for x, y, z in vertices_3d:
     location = model_matrix_predicted_refined @ location
     
     # Place a cube at each vertex position
-    bpy.ops.mesh.primitive_cube_add(size=0.1, location=(location[0], location[1], location[2]))
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(location[0], location[1], location[2]))
 
 print("----------------------------------")
