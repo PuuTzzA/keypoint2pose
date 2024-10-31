@@ -152,14 +152,17 @@ m_p = np.array([
     [0, 0, 1, 0]
 ])
 
-m_o = np.array([
+m_ndc = np.array([
     [2/(r - l), 0, 0, -(r + l)/(r - l)],
     [0, 2/(t - b), 0, -(t + b)/(t - b)],
     [0, 0, 2/(f - n), -(f + n)/(f - n)],
     [0, 0, 0, 1]
 ])
 
-projection_matrix = m_o @ m_p
+projection_matrix = m_ndc @ m_p
+
+vertices_3d = []
+points_2d = []
 
 # Open the OBJ file and read line by line
 with open(obj_file_path, 'r') as file:
@@ -169,6 +172,7 @@ with open(obj_file_path, 'r') as file:
             # Extract x, y, z coordinates
             parts = line.strip().split()
             x, y, z = map(float, parts[1:4])
+            vertices_3d.append([x, y, z])
 
             location = np.array([x, y, z, 1])
             location = model_matrix @ location
@@ -183,27 +187,31 @@ with open(obj_file_path, 'r') as file:
 
             #bpy.ops.mesh.primitive_cube_add(size=0.01, location=(location[0], location[1], location[2]))
 
-            location2 = m_o @ m_p @ location2
+            location2 = projection_matrix @ location2
 
-            x = location2[3]
             location2 /= location2[3]
 
             bpy.ops.mesh.primitive_cube_add(size=0.1, location=(location2[0], location2[1], location2[2]))
 
 
+
+A = np.zeros((2 * len(vertices_3d), 12))
+b = np.zeros(2 * len(vertices_3d))
+
 with open(points_file_path, 'r') as file:
     for line in file:
-
         parts = line.strip().split(',')
-        print(parts[0])      
 
-        x, y = float(parts[0]), float(parts[1])
-        start_point = np.array([x, y, -1, 1])
-        end_point = np.array([x, y, 1, 1])
+        x_, y_ = float(parts[0]), float(parts[1])
+
+        points_2d.append([x_, y_])
+
+        start_point = np.array([x_, y_, -1, 1])
+        end_point = np.array([x_, y_, 1, 1])
 
         create_line(start_point[:3], end_point[:3])
 
-        inverse_projection_matrix = np.linalg.inv(m_o @ m_p)
+        inverse_projection_matrix = np.linalg.inv(projection_matrix)
 
         start_point *= n
         start_point = inverse_projection_matrix @ start_point
@@ -211,3 +219,67 @@ with open(points_file_path, 'r') as file:
         end_point = inverse_projection_matrix @ end_point
 
         create_line(start_point[:3], end_point[:3])
+
+
+print("----------------------------------")
+
+for i in range(0, len(vertices_3d)):
+    c1 = projection_matrix[0][0]
+    c2 = projection_matrix[1][1]
+    c3 = projection_matrix[2][2]
+    c4 = projection_matrix[2][3]
+
+    x_ = points_2d[i][0]
+    y_ = points_2d[i][1]
+    x = vertices_3d[i][0]
+    y = vertices_3d[i][1]
+    z = vertices_3d[i][2]
+
+    A[2 * i] = [-c1 * x, -c1 * y, -c1 * z, -c1, 0, 0, 0, 0, x * x_, y * x_, z * x_, x_]
+    A[2 * i + 1] = [0, 0, 0, 0, -c2 * x, -c2 * y, -c2 * z, -c2, x * y_, y * y_, z * y_, y_]
+
+U, S, Vt = np.linalg.svd(A)
+
+model_matrix_predicted = Vt[-1].reshape(3, 4)
+model_matrix_predicted = np.vstack([model_matrix_predicted, [0, 0, 0, 1]])
+model_matrix_predicted /= model_matrix_predicted[-1][-1]
+
+R = [[model_matrix_predicted[i][j] for j in range(0, 3)] for i in range(0, 3)]
+T = [model_matrix_predicted[_][3] for _ in range(0, 3)]
+R = np.array(R)
+T = np.array(T)
+
+U, _, Vt = np.linalg.svd(R)
+R_orthogonal = U @ Vt
+
+model_matrix_predicted_refined = np.eye(4)
+
+for i in range(0, 4):
+    for j in range(0, 4):
+        if i < 3 and j < 3:
+            model_matrix_predicted_refined[i][j] = R_orthogonal[i][j]
+        elif i < 3:
+            model_matrix_predicted_refined[i][j] = T[i]
+
+#refined_model_matrix[:3][:3] = R_orthogonal[:3][:3]
+#refined_model_matrix[:3][3] = T
+
+
+print("model_matrix:")
+print(model_matrix)
+print("model_matrix_predicted")
+print(model_matrix_predicted)
+print("refined_model_matrix")
+print(model_matrix_predicted_refined)
+print("difference:")
+print(model_matrix_predicted - model_matrix)
+
+
+for x, y, z in vertices_3d:
+    location = np.array([x, y, z, 1])
+    location = model_matrix_predicted_refined @ location
+    
+    # Place a cube at each vertex position
+    bpy.ops.mesh.primitive_cube_add(size=0.1, location=(location[0], location[1], location[2]))
+
+print("----------------------------------")
