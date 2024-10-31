@@ -275,7 +275,7 @@ print(model_matrix_predicted)
 print("refined_model_matrix")
 print(model_matrix_predicted_refined)
 print("difference:")
-print(model_matrix_predicted - model_matrix)
+print(model_matrix_predicted_refined - model_matrix)
 
 
 for x, y, z in vertices_3d:
