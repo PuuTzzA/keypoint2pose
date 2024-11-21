@@ -5,6 +5,7 @@ import math
 import mathutils
 import random
 
+
 # Set the path to your OBJ file
 relative_obj_file_path = os.path.join("//test", "carModel.obj")
 obj_file_path = bpy.path.abspath(relative_obj_file_path)
@@ -16,6 +17,7 @@ if not os.path.exists(obj_file_path) or not os.path.exists(points_file_path):
 else:
     print("Files found, proceeding...")
 
+
 # Clear all existing mesh objects in the scene
 bpy.ops.object.select_all(action='DESELECT')
 bpy.ops.object.select_by_type(type='MESH')
@@ -25,7 +27,6 @@ bpy.ops.object.select_all(action='DESELECT')
 bpy.ops.object.select_by_type(type='CURVE')
 bpy.ops.object.delete()
 
-# Define Model Matrix (Translation and Rotation Matrices) for Testing
 translation = np.array([
     [1, 0, 0, 0],
     [0, 1, 0, -1],
@@ -60,7 +61,7 @@ rotation_z = np.array([
 
 model_matrix = translation @ rotation_z @ rotation_y @ rotation_x
 
-# define some helper functions to better visualize the data
+
 def set_camera_params():
     camera = bpy.context.scene.camera
     focal_length = camera.data.lens
@@ -73,8 +74,9 @@ def set_camera_params():
 
     return focal_length, sensor_width, n, f, resolution
 
+
+# https://www.scratchapixel.com/lessons/3d-basic-rendering/3d-viewing-pinhole-camera/implementing-virtual-pinhole-camera.html
 def compute_frustum(focal_length, sensor_width, near, resolution):
-    # https://www.scratchapixel.com/lessons/3d-basic-rendering/3d-viewing-pinhole-camera/implementing-virtual-pinhole-camera.html
     fov = 2 * math.atan(sensor_width / (2 * focal_length))
 
     r = near * math.tan(fov / 2)
@@ -156,7 +158,6 @@ def dis(a, b):
         print("dimension mismach ", len(a), " is not ", len(b))
     return math.sqrt(sum)
 
-# setup camera and projection matrix
 n = 1
 f = 15
 
@@ -164,10 +165,20 @@ focal_length = 30
 sensor_width = 36
 resolution = (1920, 1080)
 
+
 focal_length, sensor_width, n, f, resolution = set_camera_params()
 l, r, t, b, fov, fov_vertical = compute_frustum(focal_length, sensor_width, n, resolution)
 
+
 create_view_frustum_visualizer(l, r, t, b, n, f, fov, fov_vertical)
+
+
+m_p_naive = np.array([
+    [1, 0, 0, 0],
+    [0, 1, 0, 0],
+    [0, 0, 1, 0],
+    [0, 0, 1, 0]
+])
 
 m_p = np.array([
     [n, 0, 0, 0],
@@ -185,119 +196,127 @@ m_ndc = np.array([
 
 projection_matrix = m_ndc @ m_p
 
-# Read in the OBJ
-POINTS_FROM_FILE = False #if True then use points from file, if False use Test model matrix
-VISUALIZE = True #if True, visualize everything
 vertices_3d = []
-points_2d = []
-
-points_2d_ground_truth = []
 vertices_3d_world_coords = []
+POINTS_FROM_FILE = False
+points_2d = []
+points_2d_ground_truth = []
 
+# Open the OBJ file and read line by line
 with open(obj_file_path, 'r') as file:
     for line in file:
+        # OBJ vertices start with "v "
         if line.startswith('v '):
+            # Extract x, y, z coordinates
             parts = line.strip().split()
-            x, y, z = [float(parts[1]), float(parts[2]), float(parts[3])]
+            x, y, z = map(float, parts[1:4])
             vertices_3d.append([x, y, z])
 
+            location = np.array([x, y, z, 1])
+            location = model_matrix @ location
+            
+            # Place a cube at each vertex position
+            bpy.ops.mesh.primitive_cube_add(size=0.1, location=(location[0], location[1], location[2]))
+            vertices_3d_world_coords.append([location[0], location[1], location[2]])
+            
+            location2 = location.copy()
+
+            location = m_p_naive @ location
+            location /= location[3]
+
+            #bpy.ops.mesh.primitive_cube_add(size=0.01, location=(location[0], location[1], location[2]))
+
+            location2 = projection_matrix @ location2
+
+            location2 /= location2[3]
+
+            bpy.ops.mesh.primitive_cube_add(size=0.1, location=(location2[0], location2[1], location2[2]))
+
+            points_2d_ground_truth.append([location2[0], location2[1]])
+
             if not POINTS_FROM_FILE:
-                location = np.array([x, y, z, 1])
-                location = model_matrix @ location
-                
-                # Place a cube at each vertex position
-                bpy.ops.mesh.primitive_cube_add(size=0.1, location=(location[0], location[1], location[2]))
-                vertices_3d_world_coords.append([location[0], location[1], location[2]])
-                
-                location = projection_matrix @ location
-                location /= location[3]
-
-                bpy.ops.mesh.primitive_cube_add(size=0.1, location=(location[0], location[1], location[2]))
-
-                points_2d_ground_truth.append([location[0], location[1]])
-
                 bounds = 0.0
-                points_2d.append([location[0] + random.uniform(-bounds, bounds), location[1] + random.uniform(-bounds, bounds)])
+                points_2d.append([location2[0] + random.uniform(-bounds, bounds), location2[1] + random.uniform(-bounds, bounds)])
+
 
 #points_2d[3][0] += 0.09
 #points_2d[3][1] -= 0.2
+
+
+A = [] 
+b = []
 
 if POINTS_FROM_FILE:
     with open(points_file_path, 'r') as file:
         for line in file:
             parts = line.strip().split(',')
+
             x_, y_ = float(parts[0]), float(parts[1])
+
             points_2d.append([x_, y_])
 
-# Direct Linear Transform Estimator model
-def direct_linear_transform(sample):
-    A = []
-    b = []
-
-    p_matrix = sample["projection_matrix"]
-
-    c1 = p_matrix[0][0]
-    c2 = p_matrix[1][1]
-    c3 = p_matrix[2][2]
-    c4 = p_matrix[2][3]
-
-    for s in sample["data"]:
-        x, y, z = s["3d"]
-        x_, y_ = s["2d"]
-
-        A.append([-c1 * x, -c1 * y, -c1 * z, -c1, 0, 0, 0, 0, x * x_, y * x_, z * x_, x_])
-        A.append([0, 0, 0, 0, -c2 * x, -c2 * y, -c2 * z, -c2, x * y_, y * y_, z * y_, y_])
-        b.append(0)
-        b.append(0)
-
-    A = np.array(A)
-    b = np.array(b)
-
-    U, S, Vt = np.linalg.svd(A)
-
-    model_matrix_predicted = Vt[-1].reshape(3, 4)
-    model_matrix_predicted /= model_matrix_predicted[-1][-1]
-    model_matrix_predicted = np.vstack([model_matrix_predicted, [0, 0, 0, 1]])
-
-    # get the translation and rotation part out of the prediciton
-    R = [[model_matrix_predicted[i][j] for j in range(0, 3)] for i in range(0, 3)]
-    T = [model_matrix_predicted[i][3] for i in range(0, 3)]
-    R = np.array(R)
-    T = np.array(T)
-
-    # force the scale to be 1
-    U, _, Vt = np.linalg.svd(R)
-    R_orthogonal = U @ Vt
-
-    # rescale the translation by the same amount
-    s = R_orthogonal[0][0] / R[0][0]
-    T *= s
-
-    model_matrix_predicted = np.eye(4)
-
-    # put the rotation and translation back together
-    for i in range(0, 4):
-        for j in range(0, 4):
-            if i < 3 and j < 3:
-                model_matrix_predicted[i][j] = R_orthogonal[i][j]
-            elif i < 3:
-                model_matrix_predicted[i][j] = T[i]
-    
-    return model_matrix_predicted
 
 
-data = {"data" : [{"3d": v, "2d": p} for v, p in zip(vertices_3d, points_2d)], "projection_matrix" : projection_matrix}
+print("----------------------------------")
 
+for i in range(0, len(vertices_3d)):
+    c1 = projection_matrix[0][0]
+    c2 = projection_matrix[1][1]
+    c3 = projection_matrix[2][2]
+    c4 = projection_matrix[2][3]
 
+    x_ = points_2d[i][0]
+    y_ = points_2d[i][1]
+    x = vertices_3d[i][0]
+    y = vertices_3d[i][1]
+    z = vertices_3d[i][2]
 
-mm = direct_linear_transform(data)
+    A.append([-c1 * x, -c1 * y, -c1 * z, -c1, 0, 0, 0, 0, x * x_, y * x_, z * x_, x_])
+    A.append([0, 0, 0, 0, -c2 * x, -c2 * y, -c2 * z, -c2, x * y_, y * y_, z * y_, y_])
+    b.append(0)
+    b.append(0)
+
+A = np.array(A)
+b = np.array(b)
+
+U, S, Vt = np.linalg.svd(A)
+
+model_matrix_predicted = Vt[-1].reshape(3, 4)
+model_matrix_predicted /= model_matrix_predicted[-1][-1]
+model_matrix_predicted = np.vstack([model_matrix_predicted, [0, 0, 0, 1]])
+
+R = [[model_matrix_predicted[i][j] for j in range(0, 3)] for i in range(0, 3)]
+T = [model_matrix_predicted[_][3] for _ in range(0, 3)]
+R = np.array(R)
+T = np.array(T)
+
+U, _, Vt = np.linalg.svd(R)
+R_orthogonal = U @ Vt
+
+s = R_orthogonal[0][0] / R[0][0]
+T *= s
+
+model_matrix_predicted_refined = np.eye(4)
+
+for i in range(0, 4):
+    for j in range(0, 4):
+        if i < 3 and j < 3:
+            model_matrix_predicted_refined[i][j] = R_orthogonal[i][j]
+        elif i < 3:
+            model_matrix_predicted_refined[i][j] = T[i]
+
+#refined_model_matrix[:3][:3] = R_orthogonal[:3][:3]
+#refined_model_matrix[:3][3] = T
+
 
 print("model_matrix:")
 print(model_matrix)
-print("predicted model matrix")
-print(mm)
+#print("model_matrix_predicted")
+#print(model_matrix_predicted)
+print("model_matrix_predicted_refined")
+print(model_matrix_predicted_refined)
 print("difference:")
-print(mm - model_matrix)
+print(model_matrix_predicted_refined - model_matrix)
 print("difference in the position of the points:")
 print("point,\t screenspace_dif,\t worldspace_dif")
 
@@ -306,7 +325,7 @@ for i in range(0, len(vertices_3d)):
     x_, y_ = points_2d[i]
 
     location = np.array([x, y, z, 1])
-    location = mm @ location
+    location = model_matrix_predicted_refined @ location
     bpy.ops.mesh.primitive_cube_add(size=0.6, location=(location[0], location[1], location[2]))
 
     # Visualization
@@ -326,4 +345,24 @@ for i in range(0, len(vertices_3d)):
 
     print(i, ":\t", dis(points_2d[i], points_2d_ground_truth[i]) , "\t", dis([location[0], location[1], location[2]], vertices_3d_world_coords[i]))
 
-print("----------------------------------")   
+print("----------------------------------")
+
+
+class RANSAC:
+    def __init__(self, n=10, k=100, t=0.05, d=10, model=None, loss=None, metric=None):
+        self.n = n              # `n`: Minimum number of data points to estimate parameters
+        self.k = k              # `k`: Maximum iterations allowed
+        self.t = t              # `t`: Threshold value to determine if points are fit well
+        self.d = d              # `d`: Number of close data points required to assert model fits well
+        self.model = model      # `model`: class implementing `fit` and `predict`
+        self.loss = loss        # `loss`: function of `y_true` and `y_pred` that returns a vector
+        self.metric = metric    # `metric`: function of `y_true` and `y_pred` and returns a float
+        self.best_fit = None
+        self.best_error = np.inf
+
+
+class Direct_linear_transform:
+    def __init__(self):
+        self.params = None
+
+    
