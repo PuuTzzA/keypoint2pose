@@ -3,10 +3,11 @@ import os
 import numpy as np
 import math
 import mathutils
+import random
 
 
 # Set the path to your OBJ file
-relative_obj_file_path = os.path.join("//test", "test_cube.obj")
+relative_obj_file_path = os.path.join("//test", "carModel.obj")
 obj_file_path = bpy.path.abspath(relative_obj_file_path)
 relative_points_file_path = os.path.join("//test", "test_ndc_coordinates.txt")
 points_file_path = bpy.path.abspath(relative_points_file_path)
@@ -33,9 +34,9 @@ translation = np.array([
     [0, 0, 0, 1]
 ])
 
-r_x = math.pi/8
-r_y = math.pi/4
-r_z = 1.223422
+r_x = 0
+r_y = 0
+r_z = 0
 
 rotation_x = np.array([
     [1, 0, 0, 0],
@@ -88,7 +89,6 @@ def compute_frustum(focal_length, sensor_width, near, resolution):
     b = -t
 
     return l, r, t, b, fov, fov_vertical
-
 
 def create_view_frustum_visualizer(l, r, t, b, n, f, fov, fov_vertical):
     # Create a new cube
@@ -149,6 +149,14 @@ def create_line(start, end, thickness=0.01):
     rot_quat = direction.to_track_quat('Z', 'Y')
     line.rotation_euler = rot_quat.to_euler()
     
+def dis(a, b):
+    sum = 0
+    try:
+        for i in range(len(a)):
+            sum += (a[i] - b[i]) * (a[i] - b[i])
+    except:
+        print("dimension mismach ", len(a), " is not ", len(b))
+    return math.sqrt(sum)
 
 n = 1
 f = 15
@@ -189,8 +197,10 @@ m_ndc = np.array([
 projection_matrix = m_ndc @ m_p
 
 vertices_3d = []
+vertices_3d_world_coords = []
 POINTS_FROM_FILE = False
 points_2d = []
+points_2d_ground_truth = []
 
 # Open the OBJ file and read line by line
 with open(obj_file_path, 'r') as file:
@@ -206,7 +216,8 @@ with open(obj_file_path, 'r') as file:
             location = model_matrix @ location
             
             # Place a cube at each vertex position
-            bpy.ops.mesh.primitive_cube_add(size=0.5, location=(location[0], location[1], location[2]))
+            bpy.ops.mesh.primitive_cube_add(size=0.1, location=(location[0], location[1], location[2]))
+            vertices_3d_world_coords.append([location[0], location[1], location[2]])
             
             location2 = location.copy()
 
@@ -221,15 +232,19 @@ with open(obj_file_path, 'r') as file:
 
             bpy.ops.mesh.primitive_cube_add(size=0.1, location=(location2[0], location2[1], location2[2]))
 
+            points_2d_ground_truth.append([location2[0], location2[1]])
+
             if not POINTS_FROM_FILE:
-                points_2d.append([location2[0], location2[1]])
+                bounds = 0.0
+                points_2d.append([location2[0] + random.uniform(-bounds, bounds), location2[1] + random.uniform(-bounds, bounds)])
 
 
+#points_2d[3][0] += 0.09
+#points_2d[3][1] -= 0.2
 
 
-
-A = np.zeros((2 * len(vertices_3d), 12))
-b = np.zeros(2 * len(vertices_3d))
+A = [] 
+b = []
 
 if POINTS_FROM_FILE:
     with open(points_file_path, 'r') as file:
@@ -256,8 +271,13 @@ for i in range(0, len(vertices_3d)):
     y = vertices_3d[i][1]
     z = vertices_3d[i][2]
 
-    A[2 * i] = [-c1 * x, -c1 * y, -c1 * z, -c1, 0, 0, 0, 0, x * x_, y * x_, z * x_, x_]
-    A[2 * i + 1] = [0, 0, 0, 0, -c2 * x, -c2 * y, -c2 * z, -c2, x * y_, y * y_, z * y_, y_]
+    A.append([-c1 * x, -c1 * y, -c1 * z, -c1, 0, 0, 0, 0, x * x_, y * x_, z * x_, x_])
+    A.append([0, 0, 0, 0, -c2 * x, -c2 * y, -c2 * z, -c2, x * y_, y * y_, z * y_, y_])
+    b.append(0)
+    b.append(0)
+
+A = np.array(A)
+b = np.array(b)
 
 U, S, Vt = np.linalg.svd(A)
 
@@ -297,7 +317,8 @@ print("model_matrix_predicted_refined")
 print(model_matrix_predicted_refined)
 print("difference:")
 print(model_matrix_predicted_refined - model_matrix)
-
+print("difference in the position of the points:")
+print("point,\t screenspace_dif,\t worldspace_dif")
 
 for i in range(0, len(vertices_3d)):
     x, y, z = vertices_3d[i]
@@ -305,7 +326,7 @@ for i in range(0, len(vertices_3d)):
 
     location = np.array([x, y, z, 1])
     location = model_matrix_predicted_refined @ location
-    bpy.ops.mesh.primitive_cube_add(size=1, location=(location[0], location[1], location[2]))
+    bpy.ops.mesh.primitive_cube_add(size=0.6, location=(location[0], location[1], location[2]))
 
     # Visualization
     start_point = np.array([x_, y_, -1, 1])
@@ -322,4 +343,26 @@ for i in range(0, len(vertices_3d)):
     
     create_line(start_point[:3], end_point[:3])
 
+    print(i, ":\t", dis(points_2d[i], points_2d_ground_truth[i]) , "\t", dis([location[0], location[1], location[2]], vertices_3d_world_coords[i]))
+
 print("----------------------------------")
+
+
+class RANSAC:
+    def __init__(self, n=10, k=100, t=0.05, d=10, model=None, loss=None, metric=None):
+        self.n = n              # `n`: Minimum number of data points to estimate parameters
+        self.k = k              # `k`: Maximum iterations allowed
+        self.t = t              # `t`: Threshold value to determine if points are fit well
+        self.d = d              # `d`: Number of close data points required to assert model fits well
+        self.model = model      # `model`: class implementing `fit` and `predict`
+        self.loss = loss        # `loss`: function of `y_true` and `y_pred` that returns a vector
+        self.metric = metric    # `metric`: function of `y_true` and `y_pred` and returns a float
+        self.best_fit = None
+        self.best_error = np.inf
+
+
+class Direct_linear_transform:
+    def __init__(self):
+        self.params = None
+
+    
