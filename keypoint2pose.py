@@ -216,11 +216,11 @@ with open(obj_file_path, 'r') as file:
 
                 points_2d_ground_truth.append([location[0], location[1]])
 
-                bounds = 0.0
+                bounds = 0.05
                 points_2d.append([location[0] + random.uniform(-bounds, bounds), location[1] + random.uniform(-bounds, bounds)])
 
-#points_2d[3][0] += 0.09
-#points_2d[3][1] -= 0.2
+points_2d[3][0] += 0.09
+points_2d[3][1] -= 0.2
 
 if POINTS_FROM_FILE:
     with open(points_file_path, 'r') as file:
@@ -241,7 +241,7 @@ def direct_linear_transform(sample):
     c3 = p_matrix[2][2]
     c4 = p_matrix[2][3]
 
-    for s in sample["data"]:
+    for s in sample["points"]:
         x, y, z = s["3d"]
         x_, y_ = s["2d"]
 
@@ -285,12 +285,72 @@ def direct_linear_transform(sample):
     
     return model_matrix_predicted
 
+def dlt_loss(model, point, projection_matrix):
+    x, y, z = point["3d"]
+    x_, y_ = point["2d"]
 
-data = {"data" : [{"3d": v, "2d": p} for v, p in zip(vertices_3d, points_2d)], "projection_matrix" : projection_matrix}
+    projected = projection_matrix @ model @ np.array([x, y, z, 1])
+    projected /= projected[3]
+
+    return dis([projected[0], projected[1]], [x_, y_])
+
+class RANSAC:
+    def __init__(self, n=8, k=500, t=0.1, d=7, model=None, loss=None):
+        self.n = n              # `n`: Minimum number of data points to estimate parameters
+        self.k = k              # `k`: Maximum iterations allowed
+        self.t = t              # `t`: Threshold value to determine if points are fit well
+        self.d = d              # `d`: Number of close data points required to assert model fits well
+        self.model = model      # `model`: function that takes a sample and predicts a model
+        self.loss = loss        # `loss`: function that calculates the error of one point
+        self.best_model = None
+        self.best_error = np.inf
 
 
+    def reset(self):
+        self.best_model = None
+        self.best_error = np.inf
 
-mm = direct_linear_transform(data)
+    def fit(self, data):
+        self.reset()
+        best_inliers = []
+        projection_matrix = data["projection_matrix"]
+
+        for _ in range(self.k):
+            sample = random.sample(data["points"], self.n)
+
+            estimation = self.model({"points" : sample, "projection_matrix" : projection_matrix})
+
+            inliers = []
+            for point in data["points"]:
+                error = self.loss(estimation, point, projection_matrix)
+                if error < self.t:
+                    inliers.append(point)
+            
+            print(len(inliers))
+            if len(inliers) >= self.d:
+                better_estimation = self.model({"points" : inliers, "projection_matrix" : projection_matrix})
+                total_error = sum(self.loss(better_estimation, p, projection_matrix) for p in data["points"])
+                
+                if total_error < self.best_error:
+                    self.best_model = better_estimation
+                    self.best_error = total_error
+                    best_inliers = inliers
+
+        if self.best_error == np.inf:
+            print("RANSAC failed")
+            return self.model(data), []
+        
+        return self.best_model, best_inliers
+
+#def dlt_error(model, )
+
+data = {"points" : [{"3d": v, "2d": p} for v, p in zip(vertices_3d, points_2d)], "projection_matrix" : projection_matrix}
+
+
+regressor = RANSAC(model=direct_linear_transform, loss=dlt_loss)
+mm, inliers = regressor.fit(data)
+
+#mm = direct_linear_transform(data)
 
 print("model_matrix:")
 print(model_matrix)
