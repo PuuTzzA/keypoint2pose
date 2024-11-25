@@ -6,10 +6,10 @@ import mathutils
 import random
 
 # Set the path to your OBJ file
-relative_obj_file_path = os.path.join("//test", "carModel.obj")
-obj_file_path = bpy.path.abspath(relative_obj_file_path)
-relative_points_file_path = os.path.join("//test", "test_ndc_coordinates.txt")
-points_file_path = bpy.path.abspath(relative_points_file_path)
+current_dir = os.path.dirname(bpy.data.filepath)  # Blender's current working directory
+
+obj_file_path = os.path.join(current_dir, "test/carModel.obj")
+points_file_path = os.path.join(current_dir, "test/test_ndc_coordinates.txt")
 
 if not os.path.exists(obj_file_path) or not os.path.exists(points_file_path):
     print("One or more files not found:", obj_file_path)
@@ -29,7 +29,7 @@ bpy.ops.object.delete()
 translation = np.array([
     [1, 0, 0, 0],
     [0, 1, 0, -1],
-    [0, 0, 1, 9],
+    [0, 0, 1, 15],
     [0, 0, 0, 1]
 ])
 
@@ -138,6 +138,8 @@ def create_line(start, end, thickness=0.01):
     # Create a cylinder and set its dimensions
     bpy.ops.mesh.primitive_cylinder_add(radius=thickness, depth=length, location=(0, 0, 0))
     line = bpy.context.object
+    mat = bpy.data.materials.get("2d_points")
+    line.data.materials.append(mat)
     
     # Set the position of the cylinder to be between the start and end points
     line.location = [(s + e) / 2 for s, e in zip(start, end)]
@@ -157,8 +159,8 @@ def dis(a, b):
     return math.sqrt(sum)
 
 # setup camera and projection matrix
-n = 1
-f = 15
+n = 1 # gotten from in-file camera -> changing it here has no effect
+f = 100 # gotten from in-file camera -> changing it here has no effect
 
 focal_length = 30
 sensor_width = 36
@@ -325,8 +327,7 @@ class RANSAC:
                 error = self.loss(estimation, point, projection_matrix)
                 if error < self.t:
                     inliers.append(point)
-            
-            print(len(inliers))
+
             if len(inliers) >= self.d:
                 better_estimation = self.model({"points" : inliers, "projection_matrix" : projection_matrix})
                 total_error = sum(self.loss(better_estimation, p, projection_matrix) for p in data["points"])
@@ -377,7 +378,7 @@ for i in range(0, len(vertices_3d)):
     
     inverse_projection_matrix = np.linalg.inv(projection_matrix)
     
-    start_point *= n
+    start_point *= n * 1.05
     start_point = inverse_projection_matrix @ start_point
     end_point *= f
     end_point = inverse_projection_matrix @ end_point
@@ -385,5 +386,55 @@ for i in range(0, len(vertices_3d)):
     create_line(start_point[:3], end_point[:3])
 
     print(i, ":\t", dis(points_2d[i], points_2d_ground_truth[i]) , "\t", dis([location[0], location[1], location[2]], vertices_3d_world_coords[i]))
+
+
+
+
+# Import the OBJ file
+bpy.ops.wm.obj_import(filepath=obj_file_path)
+
+# Get the imported object (assumes it's the last one added)
+imported_obj = bpy.context.selected_objects[0]  # Gets the last selected object
+
+# Apply a transformation matrix
+blender_matrix = mathutils.Matrix([list(row) for row in mm])
+imported_obj.matrix_world = blender_matrix
+
+# Add a Geometry Nodes modifier and assign the "wireframe" node group
+geo_modifier = imported_obj.modifiers.new(name="WireframeGeoNodes", type='NODES')
+
+# Assign the existing Geometry Nodes group
+node_group_name = "wireframe"
+if node_group_name in bpy.data.node_groups:
+    geo_modifier.node_group = bpy.data.node_groups[node_group_name]
+    print(f"Assigned '{node_group_name}' Geometry Nodes group to {imported_obj.name}.")
+else:
+    print(f"Geometry Nodes group '{node_group_name}' not found!")
+
+
+# Set rendering settings
+bpy.context.scene.render.image_settings.file_format = 'PNG'  # Format: PNG, JPEG, etc.
+bpy.context.scene.render.resolution_x = resolution[0]  # Resolution X
+bpy.context.scene.render.resolution_y = resolution[1]  # Resolution Y
+
+# Set the output path
+# Define a relative path
+relative_path = "overlayed_image.png"
+
+# Convert relative path to absolute path
+output_path = os.path.join(current_dir, relative_path)
+
+print(output_path)
+print(obj_file_path)
+print(points_file_path)
+
+# Render the current frame
+bpy.ops.render.render(write_still=False)
+
+# Save the rendered image
+bpy.data.images['Render Result'].save_render(filepath=output_path)
+
+print(f"Frame rendered and saved to {output_path}")
+
 
 print("----------------------------------")   
