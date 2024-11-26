@@ -4,16 +4,20 @@ import numpy as np
 import math
 import mathutils
 import random
-
-# Add the parent directory to sys.path
 import sys
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
-
-from scene import scene
-
-x = scene()
+import importlib
+import scene
+import approximation
+import algorithms
+importlib.reload(scene)
+importlib.reload(approximation)
+importlib.reload(algorithms)
+from scene import Scene
+from algorithms import *
+from approximation import * 
 
 # Set the path to your OBJ file
 current_dir = os.path.dirname(bpy.data.filepath)  # Blender's current working directory
@@ -70,162 +74,17 @@ rotation_z = np.array([
 
 model_matrix = translation @ rotation_z @ rotation_y @ rotation_x
 
-# define some helper functions to better visualize the data
-def set_camera_params():
-    camera = bpy.context.scene.camera
-    focal_length = camera.data.lens
-    sensor_width = camera.data.sensor_width
-    n = camera.data.clip_start
-    f = camera.data.clip_end
-    
-    render = bpy.context.scene.render
-    resolution = (render.resolution_x, render.resolution_y)
-
-    return focal_length, sensor_width, n, f, resolution
-
-def compute_frustum(focal_length, sensor_width, near, resolution):
-    # https://www.scratchapixel.com/lessons/3d-basic-rendering/3d-viewing-pinhole-camera/implementing-virtual-pinhole-camera.html
-    fov = 2 * math.atan(sensor_width / (2 * focal_length))
-
-    r = near * math.tan(fov / 2)
-    l = -r
-
-    sensor_height = sensor_width * resolution[1] / resolution[0]
-    fov_vertical = 2 * math.atan(sensor_height / (2 * focal_length))
-
-    t = near * math.tan(fov_vertical / 2)
-    b = -t
-
-    return l, r, t, b, fov, fov_vertical
-
-def create_view_frustum_visualizer(l, r, t, b, n, f, fov, fov_vertical):
-    # View Frustum
-    bpy.ops.mesh.primitive_cube_add()
-    cube = bpy.context.object
-    cube.hide_render = True
-    cube.name = "ViewFrustum"
-
-    # Access the mesh data
-    mesh = cube.data
-
-    # Set the vertex coordinates
-    r_far = f * math.tan(fov / 2)
-    l_far = -r_far
-    t_far = f * math.tan(fov_vertical / 2)
-    b_far = -t_far
-    vertex_coords = [
-        (r, t, n),
-        (r, b, n),
-        (l, t, n),
-        (l, b, n),
-        (r_far, t_far, f),
-        (r_far, b_far, f),
-        (l_far, t_far, f),
-        (l_far, b_far, f),
-    ]
-
-    for i, coord in enumerate(vertex_coords):
-       mesh.vertices[i].co = coord
-
-    # Add and apply the Wireframe modifier
-    cube.modifiers.new(name="Wireframe", type='WIREFRAME')
-    
-    # NDC Space
-    bpy.ops.mesh.primitive_cube_add(size=2)
-    cube = bpy.context.object
-    cube.name = "NDC"
-    cube.modifiers.new(name="Wireframe", type='WIREFRAME')
-
-    # Background Image
-    bpy.ops.mesh.primitive_plane_add(size=1)
-    plane = bpy.context.object
-    plane.name = "background"
-    model_matrix = mathutils.Matrix([[r_far - l_far, 0, 0, 0], [0, t_far - b_far, 0, 0], [0, 0, 1, f - 0.001], [0, 0, 0, 1]])
-    plane.matrix_world = model_matrix
-    mat = bpy.data.materials.get("background")
-    background_file_path = os.path.join(current_dir, "test/test_cube.png")
-    image = bpy.data.images.load(background_file_path)
-
-    nodes = mat.node_tree.nodes
-    links = mat.node_tree.links
-    for node in nodes:
-        nodes.remove(node)
-
-    texture_node = nodes.new(type="ShaderNodeTexImage")
-    texture_node.image = image
-    texture_node.location = (-300, 300)  # Adjust location for better organization
-
-    output_node = nodes.new(type="ShaderNodeOutputMaterial")
-    output_node.location = (300, 300)
-
-    links.new(texture_node.outputs["Color"], output_node.inputs["Surface"])
-
-    plane.data.materials.append(mat)
-
-    
-def create_line(start, end, thickness=0.0075):
-    length = (mathutils.Vector(end) - mathutils.Vector(start)).length
-    
-    # Create a cylinder and set its dimensions
-    bpy.ops.mesh.primitive_cylinder_add(radius=thickness, depth=length, location=(0, 0, 0))
-    line = bpy.context.object
-    mat = bpy.data.materials.get("2d_points")
-    line.data.materials.append(mat)
-    
-    # Set the position of the cylinder to be between the start and end points
-    line.location = [(s + e) / 2 for s, e in zip(start, end)]
-    
-    # Calculate the direction vector and rotation of the line
-    direction = mathutils.Vector(end) - mathutils.Vector(start)
-    rot_quat = direction.to_track_quat('Z', 'Y')
-    line.rotation_euler = rot_quat.to_euler()
-    
-def dis(a, b):
-    sum = 0
-    try:
-        for i in range(len(a)):
-            sum += (a[i] - b[i]) * (a[i] - b[i])
-    except:
-        print("dimension mismach ", len(a), " is not ", len(b))
-    return math.sqrt(sum)
-
 # setup camera and projection matrix
-n = 1 # gotten from in-file camera -> changing it here has no effect
-f = 100 # gotten from in-file camera -> changing it here has no effect
+scene = Scene(resolution=(100, 100))
+scene.setup_blender_scene()
 
-focal_length = 30
-sensor_width = 36
-resolution = (1920, 1080)
-
-focal_length, sensor_width, n, f, resolution = set_camera_params()
-l, r, t, b, fov, fov_vertical = compute_frustum(focal_length, sensor_width, n, resolution)
-
-create_view_frustum_visualizer(l, r, t, b, n, f, fov, fov_vertical)
-
-m_p = np.array([
-    [n, 0, 0, 0],
-    [0, n, 0, 0],
-    [0, 0, n+f, -n*f],
-    [0, 0, 1, 0]
-])
-
-m_ndc = np.array([
-    [2/(r - l), 0, 0, -(r + l)/(r - l)],
-    [0, 2/(t - b), 0, -(t + b)/(t - b)],
-    [0, 0, 2/(f - n), -(f + n)/(f - n)],
-    [0, 0, 0, 1]
-])
-
-projection_matrix = m_ndc @ m_p
+projection_matrix = scene.get_projection_matrix()
 
 # Read in the OBJ
 POINTS_FROM_FILE = False #if True then use points from file, if False use Test model matrix
 VISUALIZE = True #if True, visualize everything
 vertices_3d = []
 points_2d = []
-
-points_2d_ground_truth = []
-vertices_3d_world_coords = []
 
 with open(obj_file_path, 'r') as file:
     for line in file:
@@ -239,15 +98,12 @@ with open(obj_file_path, 'r') as file:
                 location = model_matrix @ location
                 
                 # Place a cube at each vertex position
-                bpy.ops.mesh.primitive_cube_add(size=0.1, location=(location[0], location[1], location[2]))
-                vertices_3d_world_coords.append([location[0], location[1], location[2]])
+                #bpy.ops.mesh.primitive_cube_add(size=0.1, location=(location[0], location[1], location[2]))
                 
                 location = projection_matrix @ location
                 location /= location[3]
 
                 bpy.ops.mesh.primitive_cube_add(size=0.1, location=(location[0], location[1], location[2]))
-
-                points_2d_ground_truth.append([location[0], location[1]])
 
                 bounds = 0.02
                 points_2d.append([location[0] + random.uniform(-bounds, bounds), location[1] + random.uniform(-bounds, bounds)])
@@ -262,226 +118,11 @@ if POINTS_FROM_FILE:
             x_, y_ = float(parts[0]), float(parts[1])
             points_2d.append([x_, y_])
 
-# Direct Linear Transform Estimator model
-def direct_linear_transform(sample):
-    A = []
-    b = []
+car1 = PoseApproximation(vertices_3d=vertices_3d, projection_matrix=projection_matrix, obj_file_path=obj_file_path)
+car1.fit(points_2d)
+car1.visualize(scene.n * 1.1, scene.f)
 
-    p_matrix = sample["projection_matrix"]
-
-    c1 = p_matrix[0][0]
-    c2 = p_matrix[1][1]
-    c3 = p_matrix[2][2]
-    c4 = p_matrix[2][3]
-
-    for s in sample["points"]:
-        x, y, z = s["3d"]
-        x_, y_ = s["2d"]
-
-        A.append([-c1 * x, -c1 * y, -c1 * z, -c1, 0, 0, 0, 0, x * x_, y * x_, z * x_, x_])
-        A.append([0, 0, 0, 0, -c2 * x, -c2 * y, -c2 * z, -c2, x * y_, y * y_, z * y_, y_])
-        b.append(0)
-        b.append(0)
-
-    A = np.array(A)
-    b = np.array(b)
-
-    U, S, Vt = np.linalg.svd(A)
-
-    model_matrix_predicted = Vt[-1].reshape(3, 4)
-    model_matrix_predicted /= model_matrix_predicted[-1][-1]
-    model_matrix_predicted = np.vstack([model_matrix_predicted, [0, 0, 0, 1]])
-
-    # get the translation and rotation part out of the prediciton
-    R = [[model_matrix_predicted[i][j] for j in range(0, 3)] for i in range(0, 3)]
-    T = [model_matrix_predicted[i][3] for i in range(0, 3)]
-    R = np.array(R)
-    T = np.array(T)
-
-    # force the scale to be 1
-    U, _, Vt = np.linalg.svd(R)
-    R_orthogonal = U @ Vt
-
-    # rescale the translation by the same amount
-    s = R_orthogonal[0][0] / R[0][0]
-    T *= s
-
-    model_matrix_predicted = np.eye(4)
-
-    # put the rotation and translation back together
-    for i in range(0, 4):
-        for j in range(0, 4):
-            if i < 3 and j < 3:
-                model_matrix_predicted[i][j] = R_orthogonal[i][j]
-            elif i < 3:
-                model_matrix_predicted[i][j] = T[i]
-    
-    return model_matrix_predicted
-
-def dlt_loss(model, point, projection_matrix):
-    x, y, z = point["3d"]
-    x_, y_ = point["2d"]
-
-    projected = projection_matrix @ model @ np.array([x, y, z, 1])
-    projected /= projected[3]
-
-    return dis([projected[0], projected[1]], [x_, y_])
-
-class RANSAC:
-    def __init__(self, n=8, k=500, t=0.1, d=6, model=None, loss=None):
-        self.n = n              # `n`: Minimum number of data points to estimate parameters
-        self.k = k              # `k`: Maximum iterations allowed
-        self.t = t              # `t`: Threshold value to determine if points are fit well
-        self.d = d              # `d`: Number of close data points required to assert model fits well
-        self.model = model      # `model`: function that takes a sample and predicts a model
-        self.loss = loss        # `loss`: function that calculates the error of one point
-        self.best_model = None
-        self.best_error = np.inf
-
-
-    def reset(self):
-        self.best_model = None
-        self.best_error = np.inf
-
-    def fit(self, data):
-        self.reset()
-        best_inliers = []
-        projection_matrix = data["projection_matrix"]
-
-        for _ in range(self.k):
-            sample = random.sample(data["points"], self.n)
-
-            estimation = self.model({"points" : sample, "projection_matrix" : projection_matrix})
-
-            inliers = []
-            for point in data["points"]:
-                error = self.loss(estimation, point, projection_matrix)
-                if error < self.t:
-                    inliers.append(point)
-
-            if len(inliers) >= self.d:
-                better_estimation = self.model({"points" : inliers, "projection_matrix" : projection_matrix})
-                total_error = sum(self.loss(better_estimation, p, projection_matrix) for p in data["points"])
-                
-                if total_error < self.best_error:
-                    self.best_model = better_estimation
-                    self.best_error = total_error
-                    best_inliers = inliers
-
-        if self.best_error == np.inf:
-            print("RANSAC failed")
-            return self.model(data), []
-        
-        return self.best_model, best_inliers
-
-#def dlt_error(model, )
-
-data = {"points" : [{"3d": v, "2d": p} for v, p in zip(vertices_3d, points_2d)], "projection_matrix" : projection_matrix}
-
-
-regressor = RANSAC(model=direct_linear_transform, loss=dlt_loss)
-mm, inliers = regressor.fit(data)
-
-#mm = direct_linear_transform(data)
-
-print("model_matrix:")
-print(model_matrix)
-print("predicted model matrix")
-print(mm)
-print("difference:")
-print(mm - model_matrix)
-print("difference in the position of the points:")
-print("point,\t screenspace_dif,\t worldspace_dif")
-
-for i in range(0, len(vertices_3d)):
-    x, y, z = vertices_3d[i]
-    x_, y_ = points_2d[i]
-
-    location = np.array([x, y, z, 1])
-    location = mm @ location
-    #bpy.ops.mesh.primitive_cube_add(size=0.6, location=(location[0], location[1], location[2]))
-
-    # Visualization
-    start_point = np.array([x_, y_, -1, 1])
-    end_point = np.array([x_, y_, 1, 1])
-    
-    create_line(start_point[:3], end_point[:3])
-    
-    inverse_projection_matrix = np.linalg.inv(projection_matrix)
-    
-    start_point *= n * 1.05
-    start_point = inverse_projection_matrix @ start_point
-    end_point *= f
-    end_point = inverse_projection_matrix @ end_point
-    
-    create_line(start_point[:3], end_point[:3])
-
-    print(i, ":\t", dis(points_2d[i], points_2d_ground_truth[i]) , "\t", dis([location[0], location[1], location[2]], vertices_3d_world_coords[i]))
-
-
-for p in inliers:
-    x, y, z = p["3d"]
-    location = mm @ np.array([x, y, z, 1])
-    
-    bpy.ops.mesh.primitive_cube_add(size=0.6, location=(location[0], location[1], location[2]))
-    inlier = bpy.context.selected_objects[0]
-
-    # Add a Geometry Nodes modifier and assign the "wireframe" node group
-    geo_modifier = inlier.modifiers.new(name="WireframeGeoNodes", type='NODES')
-
-    # Assign the existing Geometry Nodes group
-    node_group_name = "inlier"
-    if node_group_name in bpy.data.node_groups:
-        geo_modifier.node_group = bpy.data.node_groups[node_group_name]
-        print(f"Assigned '{node_group_name}' Geometry Nodes group to {inlier.name}.")
-    else:
-        print(f"Geometry Nodes group '{node_group_name}' not found!")
-
-# Import the OBJ file
-bpy.ops.wm.obj_import(filepath=obj_file_path)
-
-# Get the imported object (assumes it's the last one added)
-imported_obj = bpy.context.selected_objects[0]  # Gets the last selected object
-
-# Apply a transformation matrix
-blender_matrix = mathutils.Matrix([list(row) for row in mm])
-imported_obj.matrix_world = blender_matrix
-
-# Add a Geometry Nodes modifier and assign the "wireframe" node group
-geo_modifier = imported_obj.modifiers.new(name="WireframeGeoNodes", type='NODES')
-
-# Assign the existing Geometry Nodes group
-node_group_name = "wireframe"
-if node_group_name in bpy.data.node_groups:
-    geo_modifier.node_group = bpy.data.node_groups[node_group_name]
-    print(f"Assigned '{node_group_name}' Geometry Nodes group to {imported_obj.name}.")
-else:
-    print(f"Geometry Nodes group '{node_group_name}' not found!")
-
-
-# Set rendering settings
-bpy.context.scene.render.image_settings.file_format = 'PNG'  # Format: PNG, JPEG, etc.
-bpy.context.scene.render.resolution_x = resolution[0]  # Resolution X
-bpy.context.scene.render.resolution_y = resolution[1]  # Resolution Y
-
-# Set the output path
-# Define a relative path
-relative_path = "overlayed_image.png"
-
-# Convert relative path to absolute path
-output_path = os.path.join(current_dir, relative_path)
-
-print(output_path)
-print(obj_file_path)
-print(points_file_path)
-
-# Render the current frame
-bpy.ops.render.render(write_still=False)
-
-# Save the rendered image
-bpy.data.images['Render Result'].save_render(filepath=output_path)
-
-print(f"Frame rendered and saved to {output_path}")
-
+scene.set_background(os.path.join(current_dir, "test/test_cube.png"))
+scene.render_frame(os.path.join(current_dir, "overlayed_image.png"))
 
 print("----------------------------------")   
