@@ -9,13 +9,16 @@ sys.path.append(parent_dir)
 from algorithms import *
 
 class PoseApproximation:
-    def __init__(self, vertices_3d, projection_matrix, obj_file_path, ransac_n=8, ransac_d=6):
+    def __init__(self, vertices_3d, projection_matrix, obj_file_path, framerate=30, ransac_n=8, ransac_d=6):
         self.vertices_3d = vertices_3d
         self.projection_matrix = projection_matrix
         self.model = None
         self.inliers = []
         self.points_2d = []
         self.regressor = RANSAC(model=direct_linear_transform, loss=dlt_loss, n=ransac_n, d=ransac_d)
+        self.position_now = [0, 0, 0]
+        self.position_prev = [0, 0, 0]
+        self.framerate = framerate
 
         # import the obj and assign the wireframe geonodes graph
         bpy.ops.wm.obj_import(filepath=obj_file_path)
@@ -27,15 +30,45 @@ class PoseApproximation:
         else:
             print(f"Geometry Nodes group '{node_group_name}' not found!")
 
+        # add the velocity indicator
+        bpy.ops.mesh.primitive_cube_add(size=0.6, location=(0, 2, 0))
+        self.speed_indicator = bpy.context.selected_objects[0]
+        geo_modifier = self.speed_indicator.modifiers.new(name="SpeedIndicatorGeoNodes", type='NODES')
+        node_group_name = "speed_indicator" 
+        if node_group_name in bpy.data.node_groups:
+            geo_modifier.node_group = bpy.data.node_groups[node_group_name]
+        else:
+            print(f"Geometry Nodes group '{node_group_name}' not found!")
+
+        self.speed_indicator.parent = self.obj
+
     def fit(self, points_2d):   
         self.points_2d = points_2d
         data = {"points" : [{"3d": v, "2d": p} for v, p in zip(self.vertices_3d, points_2d)], "projection_matrix" : self.projection_matrix}
         self.model, self.inliers = self.regressor.fit(data)
 
+        sum = np.array([0, 0, 0, 0], dtype=float)
+        for p in self.vertices_3d:
+            sum += self.model @ np.array([p[0], p[1], p[2], 1])
+
+        temp = self.position_now
+        self.position_now = sum[:3] / len(self.vertices_3d)
+        self.position_prev = temp
+
     def visualize(self, line_start=2, line_end=30):
         # move the obj to the right spot
         blender_matrix = mathutils.Matrix([list(row) for row in self.model])
         self.obj.matrix_world = blender_matrix
+
+        # update speed
+        speed_ms = dis(self.position_now, self.position_prev) * self.framerate
+        speed_kmh = speed_ms * 3.6
+        print("speed: " + str(speed_ms) +  "m/s, " + str(speed_kmh) + "km/h")
+        speed_string = str(round(speed_kmh, 2)) + "km/h"
+        print(speed_string)
+
+        self.speed_indicator.modifiers["SpeedIndicatorGeoNodes"]["Socket_2"] = self.position_now - self.position_prev
+        self.speed_indicator.modifiers["SpeedIndicatorGeoNodes"]["Socket_3"] = speed_string
 
         # indicate inliers
         for p in self.inliers:
