@@ -5,6 +5,16 @@ import math
 import mathutils
 import random
 
+# Add the parent directory to sys.path
+import sys
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
+
+from scene import scene
+
+x = scene()
+
 # Set the path to your OBJ file
 current_dir = os.path.dirname(bpy.data.filepath)  # Blender's current working directory
 
@@ -89,14 +99,11 @@ def compute_frustum(focal_length, sensor_width, near, resolution):
     return l, r, t, b, fov, fov_vertical
 
 def create_view_frustum_visualizer(l, r, t, b, n, f, fov, fov_vertical):
-    # Create a new cube
+    # View Frustum
     bpy.ops.mesh.primitive_cube_add()
     cube = bpy.context.object
+    cube.hide_render = True
     cube.name = "ViewFrustum"
-
-    # Enter edit mode to modify the vertices
-    #bpy.ops.object.mode_set(mode='EDIT')
-    #bpy.ops.mesh.select_all(action='SELECT')
 
     # Access the mesh data
     mesh = cube.data
@@ -120,19 +127,43 @@ def create_view_frustum_visualizer(l, r, t, b, n, f, fov, fov_vertical):
     for i, coord in enumerate(vertex_coords):
        mesh.vertices[i].co = coord
 
-    # Return to object mode
-    bpy.ops.object.mode_set(mode='OBJECT')
-
     # Add and apply the Wireframe modifier
     cube.modifiers.new(name="Wireframe", type='WIREFRAME')
-    #bpy.ops.object.modifier_apply(modifier=wireframe_modifier.name)
-
+    
+    # NDC Space
     bpy.ops.mesh.primitive_cube_add(size=2)
     cube = bpy.context.object
     cube.name = "NDC"
     cube.modifiers.new(name="Wireframe", type='WIREFRAME')
 
-def create_line(start, end, thickness=0.01):
+    # Background Image
+    bpy.ops.mesh.primitive_plane_add(size=1)
+    plane = bpy.context.object
+    plane.name = "background"
+    model_matrix = mathutils.Matrix([[r_far - l_far, 0, 0, 0], [0, t_far - b_far, 0, 0], [0, 0, 1, f - 0.001], [0, 0, 0, 1]])
+    plane.matrix_world = model_matrix
+    mat = bpy.data.materials.get("background")
+    background_file_path = os.path.join(current_dir, "test/test_cube.png")
+    image = bpy.data.images.load(background_file_path)
+
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    for node in nodes:
+        nodes.remove(node)
+
+    texture_node = nodes.new(type="ShaderNodeTexImage")
+    texture_node.image = image
+    texture_node.location = (-300, 300)  # Adjust location for better organization
+
+    output_node = nodes.new(type="ShaderNodeOutputMaterial")
+    output_node.location = (300, 300)
+
+    links.new(texture_node.outputs["Color"], output_node.inputs["Surface"])
+
+    plane.data.materials.append(mat)
+
+    
+def create_line(start, end, thickness=0.0075):
     length = (mathutils.Vector(end) - mathutils.Vector(start)).length
     
     # Create a cylinder and set its dimensions
@@ -218,7 +249,7 @@ with open(obj_file_path, 'r') as file:
 
                 points_2d_ground_truth.append([location[0], location[1]])
 
-                bounds = 0.05
+                bounds = 0.02
                 points_2d.append([location[0] + random.uniform(-bounds, bounds), location[1] + random.uniform(-bounds, bounds)])
 
 points_2d[3][0] += 0.09
@@ -297,7 +328,7 @@ def dlt_loss(model, point, projection_matrix):
     return dis([projected[0], projected[1]], [x_, y_])
 
 class RANSAC:
-    def __init__(self, n=8, k=500, t=0.1, d=7, model=None, loss=None):
+    def __init__(self, n=8, k=500, t=0.1, d=6, model=None, loss=None):
         self.n = n              # `n`: Minimum number of data points to estimate parameters
         self.k = k              # `k`: Maximum iterations allowed
         self.t = t              # `t`: Threshold value to determine if points are fit well
@@ -368,7 +399,7 @@ for i in range(0, len(vertices_3d)):
 
     location = np.array([x, y, z, 1])
     location = mm @ location
-    bpy.ops.mesh.primitive_cube_add(size=0.6, location=(location[0], location[1], location[2]))
+    #bpy.ops.mesh.primitive_cube_add(size=0.6, location=(location[0], location[1], location[2]))
 
     # Visualization
     start_point = np.array([x_, y_, -1, 1])
@@ -388,7 +419,23 @@ for i in range(0, len(vertices_3d)):
     print(i, ":\t", dis(points_2d[i], points_2d_ground_truth[i]) , "\t", dis([location[0], location[1], location[2]], vertices_3d_world_coords[i]))
 
 
+for p in inliers:
+    x, y, z = p["3d"]
+    location = mm @ np.array([x, y, z, 1])
+    
+    bpy.ops.mesh.primitive_cube_add(size=0.6, location=(location[0], location[1], location[2]))
+    inlier = bpy.context.selected_objects[0]
 
+    # Add a Geometry Nodes modifier and assign the "wireframe" node group
+    geo_modifier = inlier.modifiers.new(name="WireframeGeoNodes", type='NODES')
+
+    # Assign the existing Geometry Nodes group
+    node_group_name = "inlier"
+    if node_group_name in bpy.data.node_groups:
+        geo_modifier.node_group = bpy.data.node_groups[node_group_name]
+        print(f"Assigned '{node_group_name}' Geometry Nodes group to {inlier.name}.")
+    else:
+        print(f"Geometry Nodes group '{node_group_name}' not found!")
 
 # Import the OBJ file
 bpy.ops.wm.obj_import(filepath=obj_file_path)
