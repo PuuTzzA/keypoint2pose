@@ -75,7 +75,11 @@ rotation_z = np.array([
 model_matrix = translation @ rotation_z @ rotation_y @ rotation_x
 
 # setup camera and projection matrix
-scene = Scene(resolution=(100, 100))
+first_image_file_path = os.path.join(current_dir, "test/10_27491.jpg")
+
+resolution = (0, 0)
+image = bpy.data.images.load(first_image_file_path)
+scene = Scene(image.size)
 scene.setup_blender_scene()
 
 projection_matrix = scene.get_projection_matrix()

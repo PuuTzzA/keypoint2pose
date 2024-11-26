@@ -9,13 +9,13 @@ sys.path.append(parent_dir)
 from algorithms import *
 
 class PoseApproximation:
-    def __init__(self, vertices_3d, projection_matrix, obj_file_path):
+    def __init__(self, vertices_3d, projection_matrix, obj_file_path, ransac_n=8, ransac_d=6):
         self.vertices_3d = vertices_3d
         self.projection_matrix = projection_matrix
         self.model = None
         self.inliers = []
         self.points_2d = []
-        self.regressor = RANSAC(model=direct_linear_transform, loss=dlt_loss)
+        self.regressor = RANSAC(model=direct_linear_transform, loss=dlt_loss, n=ransac_n, d=ransac_d)
 
         # import the obj and assign the wireframe geonodes graph
         bpy.ops.wm.obj_import(filepath=obj_file_path)
