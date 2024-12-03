@@ -40,8 +40,6 @@ class PoseApproximation:
         else:
             print(f"Geometry Nodes group '{node_group_name}' not found!")
 
-        self.speed_indicator.parent = self.obj
-
     def fit(self, points_2d):   
         self.matched_points = []
         for i in range(len(points_2d)):
@@ -78,6 +76,15 @@ class PoseApproximation:
 
         self.speed_indicator.modifiers["SpeedIndicatorGeoNodes"]["Socket_2"] = self.position_now - self.position_prev
         self.speed_indicator.modifiers["SpeedIndicatorGeoNodes"]["Socket_3"] = speed_string
+        
+        bpy.ops.object.select_all(action='DESELECT')
+        self.speed_indicator.select_set(True)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+        translation = blender_matrix.translation
+        translation.y += 1.5
+        self.speed_indicator.matrix_world = mathutils.Matrix.Translation(translation)
 
         # indicate inliers
         for p in self.inliers:
@@ -96,10 +103,7 @@ class PoseApproximation:
                 print(f"Geometry Nodes group '{node_group_name}' not found!")
 
         # add 2d point "indicators"
-        print("model")
-        print(self.model)
         print("i:\t", "distance(NDC)")
-        print("len of matched points: ", len(self.matched_points))
         for p in self.matched_points: 
             x, y, z = p["3d"]
             x_, y_ = p["2d"]   
