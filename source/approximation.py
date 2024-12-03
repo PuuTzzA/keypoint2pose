@@ -49,7 +49,9 @@ class PoseApproximation:
 
             self.matched_points.append({"3d": self.vertices_3d[i], "2d": point["point"]})            
 
-        print("len of points", len(self.matched_points))
+        if len(self.matched_points) < 6:
+            print("length of matched points is too short, was", len(self.matched_points), "should be >=6")
+            return
 
         data = {"points" : self.matched_points, "projection_matrix" : self.projection_matrix}
         self.model, self.inliers = self.regressor.fit(data)
@@ -63,6 +65,9 @@ class PoseApproximation:
         self.position_prev = temp
 
     def visualize(self, line_start=2, line_end=30):
+        if len(self.inliers) == 0:
+            return
+        
         # move the obj to the right spot
         blender_matrix = mathutils.Matrix([list(row) for row in self.model])
         self.obj.matrix_world = blender_matrix

@@ -71,8 +71,8 @@ print(len(json_data[0]["keypoints"]))
 
 for j in range(len(json_data)):
 
-    if j != 1:
-        continue
+    #if j != 1:
+    #    continue
 
     car = PoseApproximation(vertices_3d=vertices_3d, projection_matrix=projection_matrix, obj_file_path=obj_file_path)
 
