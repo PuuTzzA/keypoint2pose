@@ -71,7 +71,7 @@ class PoseApproximation:
         speed_ms = dis(self.position_now, self.position_prev) * self.framerate
         speed_kmh = speed_ms * 3.6
         print("speed: " + str(speed_ms) +  "m/s, " + str(speed_kmh) + "km/h")
-        speed_string = str(round(speed_kmh, 2)) + "km/h"
+        speed_string = str(round(speed_kmh, 2)) + " km/h"
         print(speed_string)
 
         self.speed_indicator.modifiers["SpeedIndicatorGeoNodes"]["Socket_2"] = self.position_now - self.position_prev
