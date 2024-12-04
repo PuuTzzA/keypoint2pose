@@ -98,13 +98,9 @@ class Scene_manager():
         for car in self.cars:
             car.visualize(self.scene.n * 1.1, self.scene.f)
 
-    def render_frame(self):
-        frame_string = str(self.frame_number)
-        for _ in range(4 - len(frame_string)):
-            frame_string = "0" + frame_string
-        
-        self.scene.set_background(self.input_path + frame_string + ".jpg")
-        self.scene.render_frame(self.output_path + frame_string + ".png")
+    def render_frame(self):     
+        self.scene.set_background(self.input_path + str(self.frame_number).rjust(4, "0") + ".jpg")
+        self.scene.render_frame(self.output_path + str(self.frame_number).rjust(4, "0") + ".png")
         self.frame_number += 1
 
     def get_centroid(bbox):
