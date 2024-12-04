@@ -1,9 +1,8 @@
-# Putzer Thomas
 # yay Handsorted Vertices, how fun
-v 1.221129 -0.000099 0.745973 #front left tire
-v 1.221129 -0.000099 -0.745973 #front right tire
-v -1.405527 -0.013569 0.745973 #back left tire
-v -1.405527 -0.013569 -0.745973 #back right tire
+v 1.221129 -0.000099 0.836087 #front left tire
+v 1.221129 -0.000099 -0.836087 #front right tire
+v -1.405527 -0.013569 0.836087 #back left tire
+v -1.405527 -0.013569 -0.836087 #back right tire
 v 1.810448 0.368363 0.689758 #front left headlight
 v 1.810448 0.368363 -0.689758 #front right headlight
 v -2.278964 0.550945 0.656966 #back left backlight

@@ -97,7 +97,7 @@ class RANSAC:
 
         if(len(data["points"]) < self.d):
             print("RANSAC failed, not enough datapoints")
-            return self.model(data), []
+            return self.model(data), [], np.inf
         
         best_inliers = []
         projection_matrix = data["projection_matrix"]
@@ -121,9 +121,9 @@ class RANSAC:
                     
         if self.best_error == np.inf:
             print("RANSAC failed, no good Subset found")
-            return self.model(data), []
+            return self.model(data), [], np.inf
 
-        return self.best_model, best_inliers
+        return self.best_model, best_inliers, self.best_error
 
     def fit_wikipedia(self, data): # RANSAC as described on Wikipedia
         self.reset()

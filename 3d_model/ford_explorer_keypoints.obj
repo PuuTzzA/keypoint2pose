@@ -1,0 +1,15 @@
+# more manual labor yay
+v 1.402035 0.063161 0.980696 # front left tire
+v 1.402035 0.063161 -0.980696 # front right tire
+v -1.496655 0.062819 0.980696 # back left tire
+v -1.496655 0.062819 -0.980696 # back right tire
+v 2.076540 0.690583 0.711220 #front left headlight
+v 2.076540 0.690583 -0.711220 # front right headlight
+v -2.422808 0.847208 0.784648 # back left backlight
+v -2.422808 0.847208 -0.784648 # back right backlight
+v 1.088865 0.886862 0.875628 # front left window
+v 1.088865 0.886862 -0.875628 # front right window
+v 0.200491 1.406132 0.717416 # front left roof
+v 0.200491 1.406132 -0.717416 # front right roof
+v -2.017268 1.378371 0.647236 # back left roof
+v -2.017268 1.378371 -0.647236 # back right roof

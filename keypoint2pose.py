@@ -23,14 +23,16 @@ from source.approximation import *
 # Set the path to your OBJ file
 current_dir = os.path.dirname(bpy.data.filepath)  # Blender's current working directory
 
-obj_file_path = os.path.join(current_dir, "3d_model/nissan_altima_wireframe.obj")
-obj_keypoints_file_path = os.path.join(current_dir, "3d_model/nissan_altima_keypoints.obj")
-json_file_path = os.path.join(current_dir, "test/real_data_test.json")
+car_models = ["volvo_v60", "ford_explorer", "nissan_altima"]
 
-if not os.path.exists(obj_file_path) or not os.path.exists(obj_keypoints_file_path):
-    print("One or more files not found:", obj_file_path)
-else:
-    print("Files found, proceeding...")
+obj_file_paths = []
+obj_keypoints_file_paths = []
+
+for car_model in car_models:
+    obj_file_paths.append(os.path.join(current_dir, "3d_model/" + car_model + "_wireframe.obj"))
+    obj_keypoints_file_paths.append(os.path.join(current_dir, "3d_model/" + car_model + "_keypoints.obj"))
+
+json_file_path = os.path.join(current_dir, "test/real_data_test.json")
 
 # Clear all existing mesh objects in the scene
 bpy.ops.object.select_all(action='DESELECT')
@@ -50,17 +52,15 @@ scene.setup_blender_scene()
 
 projection_matrix = scene.get_projection_matrix()
 
-vertices_3d = []
+vertices_3d_list = [[] for _ in car_models]
 
-with open(obj_keypoints_file_path, 'r') as file:
-    for line in file:
-        if line.startswith('v '):
-            parts = line.strip().split()
-            x, y, z = [float(parts[1]), float(parts[2]), float(parts[3])]
-            vertices_3d.append([x, y, z])
-
-for e in vertices_3d:
-    print(e)
+for i in range(len(vertices_3d_list)):
+    with open(obj_keypoints_file_paths[i], 'r') as file:
+        for line in file:
+            if line.startswith('v '):
+                parts = line.strip().split()
+                x, y, z = [float(parts[1]), float(parts[2]), float(parts[3])]
+                vertices_3d_list[i].append([x, y, z])
 
 json_data = None
 with open(json_file_path, "r") as file:
@@ -74,7 +74,7 @@ for j in range(len(json_data)):
     #if j != 1:
     #    continue
 
-    car = PoseApproximation(vertices_3d=vertices_3d, projection_matrix=projection_matrix, obj_file_path=obj_file_path)
+    car = PoseApproximation(vertices_3d_list=vertices_3d_list, projection_matrix=projection_matrix, obj_file_paths=obj_file_paths)
 
     print("amount of keypoints: ", len(json_data[j]["keypoints"]) / 3)
     points_2d = []

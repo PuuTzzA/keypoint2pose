@@ -1,0 +1,15 @@
+# yay 3rd times the charm
+v 1.436845 0.053061 0.836646 # front left tire
+v 1.436845 0.053061 -0.836646 # front right tire
+v -1.419608 0.052647 0.832176 # back left tire
+v -1.419608 0.052647 -0.832176 # back right tire
+v 2.032617 0.413055 0.717354 # front left headlight
+v 2.032617 0.413055 -0.717354 # front right headlight
+v -2.237006 0.660891 0.692692 # back left backlight
+v -2.237006 0.660891 -0.692692 # back right backlight
+v 0.825881 0.708813 0.728339 # front left window
+v 0.825881 0.708813 -0.728339 # front right window
+v 0.168321 1.060544 0.558819 # front left roof
+v 0.168321 1.060544 -0.558819 # front right roof
+v -1.845774 1.057545 0.521159 # back left roof
+v -1.845774 1.057545 -0.521159 # back right roof
