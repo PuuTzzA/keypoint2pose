@@ -9,7 +9,9 @@ parent_dir = os.path.dirname(current_dir)
 from source.algorithms import *
 
 class PoseApproximation:
-    def __init__(self, vertices_3d_list, projection_matrix, obj_file_paths, framerate=30, ransac_n=8, ransac_d=6):
+    def __init__(self, vertices_3d_list, projection_matrix, obj_file_paths, bounding_box, framerate=30, ransac_n=8, ransac_d=6):
+        print("creting new approximation start ------------------------------------")
+
         self.vertices_3d_list = vertices_3d_list
         self.best_model_index = -1
         self.projection_matrix = projection_matrix
@@ -20,6 +22,7 @@ class PoseApproximation:
         self.position_now = [0, 0, 0]
         self.position_prev = [0, 0, 0]
         self.framerate = framerate
+        self.bounding_box = bounding_box
 
         # import the obj and assign the wireframe geonodes graph
         self.obj_list = []
@@ -93,10 +96,10 @@ class PoseApproximation:
         self.position_prev = temp
 
     def visualize(self, line_start=2, line_end=30):
+        print("visualizing start ------------------------------------")
         # delete the previous visualizing objects
         for obj in self.visualize_objects:
-            bpy.context.view_layer.objects.active = obj
-            bpy.ops.object.delete()
+            bpy.data.objects.remove(obj, do_unlink=True)
         
         self.speed_indicator.hide_viewport = True
         self.speed_indicator.hide_render = True
@@ -125,7 +128,7 @@ class PoseApproximation:
         self.speed_indicator.modifiers["SpeedIndicatorGeoNodes"]["Socket_3"] = speed_string
         
         bpy.ops.object.select_all(action='DESELECT')
-        self.speed_indicator.select_set(True)
+        bpy.context.view_layer.objects.active = self.speed_indicator
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -172,6 +175,22 @@ class PoseApproximation:
             projected = self.projection_matrix @ self.model @ np.array([x, y, z, 1])
             projected /= projected[3]
             print("point: \t", dis([x_, y_], projected[:2]))
+
+    def get_bbox(self):
+        return self.bounding_box
+
+    def __del__(self):
+        try:
+            print("deleted one Approximation")
+            for obj in self.visualize_objects:
+                bpy.data.objects.remove(obj, do_unlink=True)
+        
+            for obj in self.obj_list:
+                bpy.data.objects.remove(obj, do_unlink=True)
+
+            bpy.data.objects.remove(self.speed_indicator, do_unlink=True)
+        except:
+            pass
         
     def create_line(start, end, thickness=0.007):
         length = (mathutils.Vector(end) - mathutils.Vector(start)).length
