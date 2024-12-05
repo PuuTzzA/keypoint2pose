@@ -43,11 +43,11 @@ for car_model in car_models:
     obj_file_paths.append(os.path.join(current_dir, "3d_model/" + car_model + "_wireframe.obj"))
     obj_keypoints_file_paths.append(os.path.join(current_dir, "3d_model/" + car_model + "_keypoints.obj"))
 
-input_file_path = os.path.join(current_dir, "test/real_data_test_")
-output_file_path = os.path.join(current_dir, "output/test_overlayed_")
+input_file_path = os.path.join(current_dir, "test/test/test_")
+output_file_path = os.path.join(current_dir, "output/test_overlayed_new_")
 
 scene_manager = Scene_manager(obj_file_paths=obj_file_paths, keypoints_file_paths=obj_keypoints_file_paths, \
-                              input_path=input_file_path, output_path=output_file_path)
+                              input_path=input_file_path, output_path=output_file_path, focal_length=20)
 
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

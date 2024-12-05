@@ -78,7 +78,7 @@ def dlt_loss(model, point, projection_matrix):
     return dis([x_, y_], projected[:2])
 
 class RANSAC:
-    def __init__(self, n=8, k=600, t=0.07, d=6, model=None, loss=None):
+    def __init__(self, n=9, k=600, t=0.02, d=6, model=None, loss=None):
         self.n = n              # `n`: Minimum number of data points to estimate parameters
         self.k = k              # `k`: Maximum iterations allowed
         self.t = t              # `t`: Threshold value to determine if points are fit well
@@ -102,22 +102,23 @@ class RANSAC:
         best_inliers = []
         projection_matrix = data["projection_matrix"]
 
-        for sample in itertools.combinations(data["points"], self.n): # we can use this since 14 choose 8 is only 3003
-            estimation = self.model({"points" : sample, "projection_matrix" : projection_matrix})
+        for i in range(4, 10): # try ever subset size
+            for sample in itertools.combinations(data["points"], i): # we can use this since 14 choose 8 is only 3003
+                estimation = self.model({"points" : sample, "projection_matrix" : projection_matrix})
 
-            inliers = []
-            for point in data["points"]:
-                error = self.loss(estimation, point, projection_matrix)
-                if error < self.t:
-                    inliers.append(point)
+                inliers = []
+                for point in data["points"]:
+                    error = self.loss(estimation, point, projection_matrix)
+                    if error < self.t:
+                        inliers.append(point)
 
-            if len(inliers) > len(best_inliers):
-                total_error = sum(self.loss(estimation, p, projection_matrix) for p in data["points"])
+                if len(inliers) > len(best_inliers):
+                    total_error = sum(self.loss(estimation, p, projection_matrix) for p in data["points"])
 
-                if total_error < self.best_error:
-                    self.best_model = estimation
-                    self.best_error = total_error
-                    best_inliers = inliers
+                    if total_error < self.best_error:
+                        self.best_model = estimation
+                        self.best_error = total_error
+                        best_inliers = inliers
                     
         if self.best_error == np.inf:
             print("RANSAC failed, no good Subset found")

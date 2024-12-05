@@ -5,11 +5,11 @@ import os
 import numpy as np
 
 class Scene:
-    def __init__(self, resolution = (1920, 1080), n = 2, f = 30, focal_lengh = 30, sensor_width = 36):
+    def __init__(self, resolution = (1920, 1080), n = 2, f = 30, focal_length = 30, sensor_width = 36):
         self.resolution = resolution
         self.n = n
         self.f = f
-        self.focal_length = focal_lengh
+        self.focal_length = focal_length
         self.sensor_width = sensor_width
         self.background = None
         self.l = -1

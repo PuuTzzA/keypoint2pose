@@ -181,6 +181,7 @@ class PoseApproximation:
 
     def __del__(self):
         try:
+            return
             print("deleted one Approximation")
             for obj in self.visualize_objects:
                 bpy.data.objects.remove(obj, do_unlink=True)
