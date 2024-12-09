@@ -1,11 +1,14 @@
 # Keypoint2Pose
 
 
-A python project to estimate the modelview matrix of a list of 2d key points to 3d vertices correspondences.
+A python project to estimate the modelview matrices and speeds of 3d objects, given lists of 2d keypoints.
+
+Example Input             |  Example Output
+:-------------------------:|:-------------------------:
+![Example Input](./test/test_input.jpg)  |  ![Example Output](./test/test_output.png)
 
 
 ## Input
-
 
 * **2d Key Points:** The 2d key points are given in a json file in this format:
 
@@ -30,7 +33,7 @@ A python project to estimate the modelview matrix of a list of 2d key points to 
 * **3d Vertex Data:** And the 3d model whose pose should be estimated is given as an .obj file. It is important that the order of vertices in the .obj file match the order of the corresponding key point in the json file. The scene manager takes a list of obj's and tries to find the best fitting one if the exact 3d model of the keypoints is not known. To overlay a more complicated model, or since the 3d software of your choice does not order the vertices in the right order, you can specify two lists of obj's: one for the 3d vertices that will be used to approximate the pose and one for the obj that will be placed as a visualizer on this position. 
 
 
-* **Background Image:** Additionally there should also be an image file/sequence where the key points are taken from (this is only for visualizing the output, it has no functional purpose).
+* **Background Images:** Additionally there should also be an image file/sequence where the key points are taken from (this is only for visualizing the output, it has no functional purpose).
     The json files and corresponding images should live in the same place, and have the same name, ending with "000" + #frame.
 
 
