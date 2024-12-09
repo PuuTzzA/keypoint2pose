@@ -77,7 +77,7 @@ def dlt_loss(model, point, projection_matrix):
 
     return dis([x_, y_], projected[:2])
 
-class RANSAC:
+class RANSAC():
     def __init__(self, n=9, k=600, t=0.02, d=6, model=None, loss=None):
         self.n = n              # `n`: Minimum number of data points to estimate parameters
         self.k = k              # `k`: Maximum iterations allowed
