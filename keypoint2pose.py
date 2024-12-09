@@ -43,18 +43,21 @@ for car_model in car_models:
     obj_file_paths.append(os.path.join(current_dir, "3d_model/" + car_model + "_wireframe.obj"))
     obj_keypoints_file_paths.append(os.path.join(current_dir, "3d_model/" + car_model + "_keypoints.obj"))
 
-input_file_path = os.path.join(current_dir, "test/test/test_")
+input_file_path = os.path.join(current_dir, "../stable_images_5/test_")
 output_file_path = os.path.join(current_dir, "output/test_overlayed_new_")
 
-scene_manager = Scene_manager(obj_file_paths=obj_file_paths, keypoints_file_paths=obj_keypoints_file_paths, \
-                              input_path=input_file_path, output_path=output_file_path, focal_length=20)
-
+#scene_manager = Scene_manager(obj_file_paths=obj_file_paths, keypoints_file_paths=obj_keypoints_file_paths, \
+#                              input_path=input_file_path, output_path=output_file_path, focal_length=30, frame_rate=5,\
+#                              start_index=1)
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # >>> iterate over all available frames and render them >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-for i in range(1, 3):
+for i in range(1, 27):
+    scene_manager = Scene_manager(obj_file_paths=obj_file_paths, keypoints_file_paths=obj_keypoints_file_paths, \
+                                  input_path=input_file_path, output_path=output_file_path, focal_length=30, frame_rate=5,\
+                                  start_index=i)
     scene_manager.step(json_file_path=input_file_path + str(i).rjust(4, "0") + ".json")
     scene_manager.visualize()
     scene_manager.render_frame() 

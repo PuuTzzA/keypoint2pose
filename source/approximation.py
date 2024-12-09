@@ -19,7 +19,7 @@ class PoseApproximation:
         self.inliers = []
         self.matched_points_list = []
         self.regressor = RANSAC(model=direct_linear_transform, loss=dlt_loss, n=ransac_n, d=ransac_d)
-        self.position_now = [0, 0, 0]
+        self.position_now = [-1, -1, -1]
         self.position_prev = [0, 0, 0]
         self.framerate = framerate
         self.bounding_box = bounding_box
@@ -99,7 +99,10 @@ class PoseApproximation:
         print("visualizing start ------------------------------------")
         # delete the previous visualizing objects
         for obj in self.visualize_objects:
-            bpy.data.objects.remove(obj, do_unlink=True)
+            try:
+                bpy.data.objects.remove(obj, do_unlink=True)
+            except:
+                pass
         
         self.speed_indicator.hide_viewport = True
         self.speed_indicator.hide_render = True
@@ -118,11 +121,15 @@ class PoseApproximation:
         # update speed
         self.speed_indicator.hide_viewport = False
         self.speed_indicator.hide_render = False
-        speed_ms = dis(self.position_now, self.position_prev) * self.framerate
-        speed_kmh = speed_ms * 3.6
-        print("speed: " + str(speed_ms) +  "m/s, " + str(speed_kmh) + "km/h")
-        speed_string = str(round(speed_kmh, 2)) + " km/h"
-        print(speed_string)
+        speed_string = ""
+        if self.position_prev[0] == -1:
+            speed_string = "entered frame"
+        else:
+            speed_ms = dis(self.position_now, self.position_prev) * self.framerate
+            speed_kmh = speed_ms * 3.6
+            print("speed: " + str(speed_ms) +  "m/s, " + str(speed_kmh) + "km/h")
+            speed_string = str(round(speed_kmh, 2)) + " km/h"
+            print(speed_string)
 
         self.speed_indicator.modifiers["SpeedIndicatorGeoNodes"]["Socket_2"] = self.position_now - self.position_prev
         self.speed_indicator.modifiers["SpeedIndicatorGeoNodes"]["Socket_3"] = speed_string
@@ -180,15 +187,20 @@ class PoseApproximation:
         return self.bounding_box
 
     def __del__(self):
-        try:
-            return
-            print("deleted one Approximation")
-            for obj in self.visualize_objects:
-                bpy.data.objects.remove(obj, do_unlink=True)
-        
-            for obj in self.obj_list:
-                bpy.data.objects.remove(obj, do_unlink=True)
+        print("trying to delete Approximation")
 
+        for obj in self.visualize_objects:
+            try:
+                bpy.data.objects.remove(obj, do_unlink=True)
+            except:
+                pass
+        for obj in self.obj_list:
+            try:
+                bpy.data.objects.remove(obj, do_unlink=True)
+            except:
+                pass
+        
+        try:
             bpy.data.objects.remove(self.speed_indicator, do_unlink=True)
         except:
             pass

@@ -11,14 +11,15 @@ from source.approximation import *
 
 
 class Scene_manager():
-    def __init__(self, obj_file_paths, keypoints_file_paths, input_path, output_path, max_distance=0.1, focal_length=30):
+    def __init__(self, obj_file_paths, keypoints_file_paths, input_path, output_path, max_distance=0.1, focal_length=30, frame_rate=30, start_index=1):
         self.obj_file_paths = obj_file_paths
         self.obj_keypoints_file_paths = keypoints_file_paths
         self.cars = []
         self.max_distance_traveled = max_distance # in NDC 
         self.input_path = input_path
         self.output_path = output_path
-        self.frame_number = 1
+        self.frame_number = start_index
+        self.frame_rate = frame_rate
 
         image = bpy.data.images.load(input_path + "0001.jpg")
         self.scene = Scene(resolution=image.size, n=2, f=200, focal_length=focal_length)
@@ -61,7 +62,8 @@ class Scene_manager():
                 points_2d_list.append({"points": points_2d, "bbox": json_data[j]["bbox"]})
 
         # for every existing car, see if there is one new one that is close
-        for i, car in enumerate(self.cars[:]):
+        matched_cars = []
+        for car in self.cars:
 
             last_centerorid = Scene_manager.get_centroid(car.get_bbox())
             last_centerorid = self.scene.pixel_to_NDC(last_centerorid[0], last_centerorid[1])
@@ -82,15 +84,15 @@ class Scene_manager():
             if min_distance <= self.max_distance_traveled:
                 print("succesfully matched car")
                 car.fit(points_2d=points_2d_list[min_index]["points"])
+                matched_cars.append(car)
 
                 points_2d_list.remove(points_2d_list[min_index])
 
-            else: # if no bounding box is found, assume that the car left the scene and remove it
-                self.cars.remove(car) 
+        self.cars = matched_cars
 
         # for every remaining new car, create a new car (assume it just entered the frame)
         for points_2d in points_2d_list:
-            car = PoseApproximation(vertices_3d_list=self.vertices_3d_list, projection_matrix=self.projection_matrix, obj_file_paths=self.obj_file_paths, bounding_box=points_2d["bbox"])
+            car = PoseApproximation(vertices_3d_list=self.vertices_3d_list, projection_matrix=self.projection_matrix, obj_file_paths=self.obj_file_paths, bounding_box=points_2d["bbox"], framerate=self.frame_rate)
             car.fit(points_2d=points_2d["points"])
             self.cars.append(car)
 
