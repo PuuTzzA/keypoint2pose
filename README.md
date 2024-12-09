@@ -31,7 +31,7 @@ A python project to estimate the modelview matrix of a list of 2d key points to 
 
 
 * **Background Image:** Additionally there should also be an image file/sequence where the key points are taken from (this is only for visualizing the output, it has no functional purpose).
-    The json files and according images should live in the same place, and have the same name, ending with "000" + #frame.
+    The json files and corresponding images should live in the same place, and have the same name, ending with "000" + #frame.
 
 
 * **Camera Parameters:** The model also needs the camera's focal length and sensor size to accurately predict the object's pose. If you want to approximate the speed over multiple frames, the framerate is also needed.
