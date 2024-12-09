@@ -48,7 +48,7 @@ To use it you can use the Scene_manager class to control all the logic.
 
 ```py
 class Scene_manager():
-    def __init__(self, obj_file_paths, keypoints_file_paths, input_path, output_path, max_distance=0.1, focal_length=30, frame_rate=30, start_index=1):
+    def __init__(self, obj_file_paths, keypoints_file_paths, input_path, output_path, max_distance=0.1, focal_length=30, sensor_width=36, frame_rate=30, start_index=1):
         pass
 
     def step(self, json_file_path):

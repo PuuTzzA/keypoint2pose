@@ -205,7 +205,7 @@ class PoseApproximation:
         except:
             pass
         
-    def create_line(start, end, thickness=0.007):
+    def create_line(start, end, thickness=0.004):
         length = (mathutils.Vector(end) - mathutils.Vector(start)).length
 
         # Create a cylinder and set its dimensions

@@ -11,7 +11,7 @@ from source.approximation import *
 
 
 class Scene_manager():
-    def __init__(self, obj_file_paths, keypoints_file_paths, input_path, output_path, max_distance=0.1, focal_length=30, frame_rate=30, start_index=1):
+    def __init__(self, obj_file_paths, keypoints_file_paths, input_path, output_path, max_distance=0.1, focal_length=30, sensor_width=36, frame_rate=30, start_index=1):
         self.obj_file_paths = obj_file_paths
         self.obj_keypoints_file_paths = keypoints_file_paths
         self.cars = []
@@ -21,8 +21,8 @@ class Scene_manager():
         self.frame_number = start_index
         self.frame_rate = frame_rate
 
-        image = bpy.data.images.load(input_path + "0001.jpg")
-        self.scene = Scene(resolution=image.size, n=2, f=200, focal_length=focal_length)
+        image = bpy.data.images.load(input_path + str(start_index).rjust(4, "0") + ".jpg")
+        self.scene = Scene(resolution=image.size, n=2, f=200, focal_length=focal_length, sensor_width=sensor_width)
         self.scene.setup_blender_scene()
 
         self.projection_matrix = self.scene.get_projection_matrix()
