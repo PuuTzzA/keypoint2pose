@@ -27,7 +27,7 @@ A python project to estimate the modelview matrix of a list of 2d key points to 
     This is a list of objects to approximate that exist in the current frame.
 
 
-* **3d Vertex Data:** And the 3d model whose pose should be estimated is given as an .obj file. It is important that the order of vertices in the .obj file match the order of the corresponding key point in the json file. The scene manager takes a list of obj's and tries to find the best fitting one if the exact 3d model of the keypoints is not known. To overlay a more complicated model, or since the 3d software of your choice does not order the vertices in the right order, you can specify two lists one for the 3d vertices that will be used to approximate the pose and one for the obj that will be placed as a visualizer on this position. 
+* **3d Vertex Data:** And the 3d model whose pose should be estimated is given as an .obj file. It is important that the order of vertices in the .obj file match the order of the corresponding key point in the json file. The scene manager takes a list of obj's and tries to find the best fitting one if the exact 3d model of the keypoints is not known. To overlay a more complicated model, or since the 3d software of your choice does not order the vertices in the right order, you can specify two lists of obj's: one for the 3d vertices that will be used to approximate the pose and one for the obj that will be placed as a visualizer on this position. 
 
 
 * **Background Image:** Additionally there should also be an image file/sequence where the key points are taken from (this is only for visualizing the output, it has no functional purpose).
@@ -121,7 +121,6 @@ In the ./source/file algorithms.py are the algorithms to approximate the pose (D
 ```py
 def direct_linear_transform(sample):
         pass
-
 
 class RANSAC():
     def __init__(self, n, k, t, d, model, loss):
