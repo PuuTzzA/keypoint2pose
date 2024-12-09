@@ -72,35 +72,48 @@ The Scene_manager class manages a Scene and a List of PoseApproximation's. The s
 
 ```py
 class Scene():
-    def __init(self, resolution = (1920, 1080), n = 2, f = 30, focal_length = 30, sensor_width = 36)
+    def __init(self, resolution = (1920, 1080), n = 2, f = 30, focal_length = 30, sensor_width = 36):
+        pass
 
-    def setup_blender_scene(self)
+    def setup_blender_scene(self):
+        pass
 
-    def get_projection_matrix(self)
+    def get_projection_matrix(self):
+        pass
 
-    def create_view_frustum_and_background(self, l, r, t, b, n, f, fov, fov_vertical)
+    def create_view_frustum_and_background(self, l, r, t, b, n, f, fov, fov_vertical):
+        pass
 
-    def pixel_to_NDC(self, x, y)
+    def pixel_to_NDC(self, x, y):
+        pass
 
-    def set_background(self, path)
+    def set_background(self, path):
+        pass
 
-    def render_frame(self, output_path)
+    def render_frame(self, output_path):
+        pass
 
-    def compute_frustum(focal_length, sensor_width, near, resolution)
+    def compute_frustum(focal_length, sensor_width, near, resolution):
+        pass
 ```
 
 
 ```py
 class PoseApproximation():
-    def __init__(self, vertices_3d_list, projection_matrix, obj_file_paths, bounding_box, framerate=30, ransac_n=8, ransac_d=6)
+    def __init__(self, vertices_3d_list, projection_matrix, obj_file_paths, bounding_box, framerate=30, ransac_n=8, ransac_d=6):
+        pass
 
-    def fit(self, points_2d)
+    def fit(self, points_2d):
+        pass
 
-    def visualize(self, line_start, line_end)
+    def visualize(self, line_start, line_end):
+        pass
 
-    def get_bbox(self)
+    def get_bbox(self):
+        pass
 
-    def create_line(start, end, thickness=0.007)
+    def create_line(start, end, thickness=0.007):
+        pass
 ```
 
 
@@ -108,13 +121,17 @@ In the ./source/file algorithms.py are the algorithms to approximate the pose (D
 
 
 ```py
-def direct_linear_transform(sample)
+def direct_linear_transform(sample):
+        pass
 
 
 class RANSAC():
-    def __init__(self, n, k, t, d, model, loss)
+    def __init__(self, n, k, t, d, model, loss):
+        pass
 
-    def reset(self)
+    def reset(self):
+        pass
 
-    def fit(self, data)
+    def fit(self, data):
+        pass
 ```
